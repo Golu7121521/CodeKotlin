@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../providers/performance_provider.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_motion.dart';
+import '../theme/app_theme.dart';
 
 /// A shimmering skeleton placeholder, used for the Discovery Engine's
 /// "Loading State". In [AppPerformanceMode.reduced] the animated sweep is

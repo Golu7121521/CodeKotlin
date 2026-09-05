@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/movie_model.dart';
 import '../providers/performance_provider.dart';
 import '../theme/app_spacing.dart';
+import '../theme/app_theme.dart';
 import '../theme/app_typography.dart';
 import 'movie_poster_card.dart';
 import 'shimmer_box.dart';

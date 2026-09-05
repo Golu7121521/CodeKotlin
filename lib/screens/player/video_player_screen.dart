@@ -126,7 +126,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   Future<void> _initializePlayback(StreamSource source) async {
     setState(() => _state = _PlayerLoadState.resolving);
 
-    await _chewieController?.dispose();
+    _chewieController?.dispose();
     await _videoController?.dispose();
 
     try {
