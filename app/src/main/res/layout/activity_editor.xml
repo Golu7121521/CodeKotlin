@@ -61,7 +61,7 @@
                 android:id="@+id/edtCode"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:minWidth="match_parent"
+                android:minWidth="360dp"
                 android:background="@null"
                 android:gravity="top|start"
                 android:inputType="textMultiLine|textNoSuggestions"
