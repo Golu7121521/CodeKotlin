@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/bg_editor"
+    android:fitsSystemWindows="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="8dp"
+        android:background="@color/bg_black">
+
+        <TextView
+            android:id="@+id/txtFilePath"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:fontFamily="monospace"
+            android:textColor="@color/neon_green"
+            android:textSize="12sp"
+            android:singleLine="true"
+            android:ellipsize="start" />
+
+        <LinearLayout
+            android:id="@+id/btnSave"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/bg_chip"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:src="@drawable/ic_save"
+                android:contentDescription="@null" />
+
+            <TextView
+                style="@style/ChipTextStyle"
+                android:text="SAVE" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:scrollbars="none">
+
+        <ScrollView
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent">
+
+            <EditText
+                android:id="@+id/edtCode"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="360dp"
+                android:background="@null"
+                android:gravity="top|start"
+                android:inputType="textMultiLine|textNoSuggestions"
+                android:padding="12dp"
+                android:fontFamily="monospace"
+                android:textColor="@color/neon_green"
+                android:textSize="13sp" />
+        </ScrollView>
+    </HorizontalScrollView>
+
+</LinearLayout>

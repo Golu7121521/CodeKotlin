@@ -1,41 +1,40 @@
-# FlutIDE
+# VS Code Mobile IDE & CI/CD Terminal
 
-Ek lightweight mobile Flutter code editor — naya Flutter project banaiye,
-code likhiye (color syntax highlighting ke saath), aur GitHub Actions ki
-madad se APK build kariye — sab kuch phone/tablet se hi.
+Ultra-lightweight native Kotlin Android terminal app for cloning, editing, and
+pushing GitHub repos, and driving GitHub Actions builds, entirely from your phone.
 
-## Features
-- **New Project** → standard Flutter folder structure (`lib/`, `test/`,
-  `android/`, `ios/`, `web/`) + `.github/workflows/flutter_build.yml`
-  automatically ban jaata hai.
-- **Code Editor** → Dart/YAML/XML/JSON syntax color-highlighting (no error
-  checking / linting by design — sirf coloring).
-- **Import / Export** → kisi bhi project ko `.zip` se import karein ya
-  apna project `.zip` mein export karein.
-- **Terminal** → basic commands (`ls`, `cd`, `mkdir`, `touch`, `rm`, `cat`,
-  `echo`, `clear`) + build commands:
-  - `push` → project files ko GitHub repo mein upload karta hai (Contents API)
-  - `build` → GitHub Actions workflow trigger karta hai
-  - `status` → latest build status + APK artifact link dikhata hai
-- **Settings** → default template files (`main.dart`, `pubspec.yaml`,
-  workflow file, etc.) ko customize kar sakte hain — naya project banate
-  waqt wahi content use hoga.
-- Compact UI — chhote toolbar icons/buttons taaki UI bhaari na lage.
+## One-time setup (before first push to GitHub)
 
-## Setup (build this app yourself)
-1. `flutter pub get`
-2. Local run: `flutter run`
-3. Ya GitHub Actions se build: push this repo, then run the
-   **Build Flutter APK** workflow (Actions tab → Run workflow), or push to
-   `main`. Download the APK from the workflow run's Artifacts section.
+Gradle's wrapper jar (`gradle/wrapper/gradle-wrapper.jar`) is a binary file and
+is not included here since it can't be generated as plain text. Before your
+first commit, run this once on any machine with Gradle installed (or in a
+throwaway Actions step) from the project root:
 
-## GitHub token scopes needed (for the in-app push/build feature)
-Create a Personal Access Token (classic) with `repo` and `workflow` scopes,
-paste it in Settings inside a project → GitHub Setup.
+```bash
+gradle wrapper --gradle-version 8.9
+```
 
-## Notes on generated projects
-Every project created inside FlutIDE ships with Android build files
-pre-configured for Gradle 8.14 / AGP 8.11.1 / Kotlin 2.2.20 / Java 17,
-`minifyEnabled false`, no ABI filters, and a safe fallback launcher icon —
-so the very first GitHub Actions build has the best chance of succeeding
-without manual Gradle troubleshooting.
+This generates `gradlew`, `gradlew.bat`, and `gradle/wrapper/gradle-wrapper.jar`.
+Commit all three alongside the rest of this project. After that, every push to
+`main` (or a manual "Run workflow" click) builds `app/build/outputs/apk/release/*.apk`
+via `.github/workflows/build.yml` and uploads it as a workflow artifact.
+
+## In-app usage
+
+1. Launch the app — no permission prompts needed; the workspace lives in the app's own private-but-app-scoped storage.
+2. `token <your_github_pat>` — saves a PAT locally (needs `repo` and `workflow` scopes).
+3. `clone owner/repo` — downloads and unzips into the app's own workspace folder (`Android/data/com.vsm.ide/files/Vscode/owner_repo`), which needs no special permission on any Android version.
+4. `files` — browse the workspace; tap a file to open it in the editor; SAVE writes it back to disk.
+5. `push owner/repo path/to/file.kt "commit message"` — pushes a single file.
+6. `pushall owner/repo "commit message"` — pushes every changed file via the Git Data API tree flow.
+7. `build owner/repo build.yml` — triggers that workflow via `workflow_dispatch`.
+8. `status owner/repo` — shows the latest run's status/conclusion.
+9. `download owner/repo` — opens the repo's Actions page in your browser to grab build artifacts.
+
+## Notes
+
+- Release builds are signed with the AGP-generated debug keystore so CI can
+  produce an installable APK with zero keystore setup. Swap in your own
+  release signing config before shipping to production/Play Store.
+- Target ABI is restricted to `arm64-v8a` and resources/code are shrunk to
+  keep the APK under ~3MB.

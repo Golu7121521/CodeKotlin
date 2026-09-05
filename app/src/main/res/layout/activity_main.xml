@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/bg_black"
+    android:fitsSystemWindows="true">
+
+    <!-- Terminal output -->
+    <ScrollView
+        android:id="@+id/scrollOutput"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true"
+        android:paddingHorizontal="10dp"
+        android:paddingTop="6dp">
+
+        <TextView
+            android:id="@+id/txtOutput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="monospace"
+            android:textColor="@color/neon_green"
+            android:textSize="12sp"
+            android:textIsSelectable="true"
+            android:lineSpacingExtra="2dp" />
+    </ScrollView>
+
+    <!-- Quick action chips -->
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:scrollbars="none"
+        android:paddingVertical="6dp">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingHorizontal="8dp">
+
+            <LinearLayout
+                android:id="@+id/chipFiles"
+                style="@style/ChipStyle">
+                <ImageView android:layout_width="16dp" android:layout_height="16dp"
+                    android:src="@drawable/ic_folder" android:contentDescription="@null"/>
+                <TextView style="@style/ChipTextStyle" android:text="FILES" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/chipStatus"
+                style="@style/ChipStyle">
+                <ImageView android:layout_width="16dp" android:layout_height="16dp"
+                    android:src="@drawable/ic_status" android:contentDescription="@null"/>
+                <TextView style="@style/ChipTextStyle" android:text="STATUS" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/chipClear"
+                style="@style/ChipStyle">
+                <ImageView android:layout_width="16dp" android:layout_height="16dp"
+                    android:src="@drawable/ic_clear" android:contentDescription="@null"/>
+                <TextView style="@style/ChipTextStyle" android:text="CLEAR" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/chipHelp"
+                style="@style/ChipStyle">
+                <ImageView android:layout_width="16dp" android:layout_height="16dp"
+                    android:src="@drawable/ic_help" android:contentDescription="@null"/>
+                <TextView style="@style/ChipTextStyle" android:text="HELP" />
+            </LinearLayout>
+
+        </LinearLayout>
+    </HorizontalScrollView>
+
+    <!-- Input bar -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="8dp"
+        android:background="@color/bg_black">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="$ "
+            android:textColor="@color/neon_green"
+            android:fontFamily="monospace"
+            android:textStyle="bold"
+            android:textSize="14sp" />
+
+        <EditText
+            android:id="@+id/edtCommand"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginHorizontal="6dp"
+            android:background="@drawable/bg_input"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="8dp"
+            android:fontFamily="monospace"
+            android:textColor="@color/neon_green"
+            android:textColorHint="@color/hint_gray"
+            android:hint="type a command..."
+            android:inputType="text"
+            android:imeOptions="actionGo"
+            android:singleLine="true" />
+
+        <Button
+            android:id="@+id/btnExec"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="EXEC"
+            android:textColor="@color/white"
+            android:textSize="12sp"
+            android:paddingHorizontal="16dp"
+            android:background="@drawable/bg_exec_button" />
+
+    </LinearLayout>
+
+</LinearLayout>

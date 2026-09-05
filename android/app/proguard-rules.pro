@@ -1,7 +1,0 @@
--keep class io.flutter.app.** { *; }
--keep class io.flutter.plugin.** { *; }
--keep class io.flutter.** { *; }
--dontwarn com.google.android.play.core.**
--dontwarn androidx.media3.**
--dontwarn io.flutter.embedding.engine.deferredcomponents.**
--ignorewarnings
