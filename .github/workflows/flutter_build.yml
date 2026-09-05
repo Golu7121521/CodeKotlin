@@ -1,0 +1,99 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch: {}
+
+env:
+  FLUTTER_VERSION: '3.27.1'
+
+jobs:
+  build_apk:
+    name: Build arm64 APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      # -----------------------------------------------------------------
+      # Gradle wrapper generation.
+      #
+      # A hand-written gradlew script/jar is fragile (broken JVM-arg
+      # quoting, invalid wrapper jars, or jars accidentally sourced from
+      # a test-fixtures directory are all real failure modes we've hit).
+      # The reliable fix is to generate a real wrapper using an actual
+      # installed Gradle binary, in an isolated scratch directory
+      # containing nothing but a minimal settings.gradle — NOT this
+      # repo's android/ directory — so the `gradle wrapper` task never
+      # has to parse our app/build.gradle (which previously failed with
+      # "only buildscript {}, pluginManagement {} ... are allowed before
+      # plugins {} blocks" when Gradle tried to evaluate the whole
+      # project just to run one task in it).
+      # -----------------------------------------------------------------
+      - name: Install Gradle 8.14
+        run: |
+          set -e
+          curl -sSL -o /tmp/gradle-8.14-bin.zip https://services.gradle.org/distributions/gradle-8.14-bin.zip
+          unzip -q /tmp/gradle-8.14-bin.zip -d /tmp
+          echo "/tmp/gradle-8.14/bin" >> "$GITHUB_PATH"
+
+      - name: Generate Gradle wrapper (isolated, minimal project)
+        run: |
+          set -e
+          mkdir -p /tmp/wrapper-gen
+          cd /tmp/wrapper-gen
+          echo "rootProject.name = 'wrapper-gen'" > settings.gradle
+          /tmp/gradle-8.14/bin/gradle wrapper --gradle-version 8.14 --distribution-type all --no-daemon
+
+      - name: Install wrapper into android/
+        run: |
+          set -e
+          rm -rf "$GITHUB_WORKSPACE/android/gradle/wrapper"
+          mkdir -p "$GITHUB_WORKSPACE/android/gradle/wrapper"
+          cp /tmp/wrapper-gen/gradle/wrapper/gradle-wrapper.jar "$GITHUB_WORKSPACE/android/gradle/wrapper/gradle-wrapper.jar"
+          cp /tmp/wrapper-gen/gradlew "$GITHUB_WORKSPACE/android/gradlew"
+          cp /tmp/wrapper-gen/gradlew.bat "$GITHUB_WORKSPACE/android/gradlew.bat"
+          cat > "$GITHUB_WORKSPACE/android/gradle/wrapper/gradle-wrapper.properties" << 'EOF'
+          distributionBase=GRADLE_USER_HOME
+          distributionPath=wrapper/dists
+          distributionUrl=https\://services.gradle.org/distributions/gradle-8.14-all.zip
+          networkTimeout=10000
+          validateDistributionUrl=true
+          zipStoreBase=GRADLE_USER_HOME
+          zipStorePath=wrapper/dists
+          EOF
+          chmod +x "$GITHUB_WORKSPACE/android/gradlew"
+
+          echo "=== Verifying wrapper jar contains GradleWrapperMain ==="
+          unzip -l "$GITHUB_WORKSPACE/android/gradle/wrapper/gradle-wrapper.jar" | grep GradleWrapperMain
+
+      # Note: --split-per-abi is intentionally NOT used here since
+      # app/build.gradle already restricts the build to arm64-v8a via
+      # ndk.abiFilters — combining both mechanisms is a known source of
+      # Gradle/Flutter disagreeing about how many APK variants to build.
+      - name: Build release APK (arm64-v8a only)
+        run: flutter build apk --release --target-platform android-arm64
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-arm64.apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
