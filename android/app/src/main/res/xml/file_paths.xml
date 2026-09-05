@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Permanent downloaded videos live under app-scoped external files -->
+    <external-files-path name="downloads" path="Movies/Downloads" />
+    <external-files-path name="movies" path="Movies" />
+
+    <!-- Temporary preview cache -->
+    <cache-path name="preview_cache" path="preview_cache" />
+
+    <!-- Fallback for app-internal files -->
+    <files-path name="internal_files" path="." />
+</paths>
