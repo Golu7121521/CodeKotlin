@@ -1,40 +1,36 @@
-def localProperties = new Properties()
-def localPropertiesFile = rootProject.file('local.properties')
-if (localPropertiesFile.exists()) {
-    localPropertiesFile.withReader('UTF-8') { reader ->
-        localProperties.load(reader)
-    }
-}
-
-def flutterVersionCode = localProperties.getProperty('flutter.versionCode')
-if (flutterVersionCode == null) {
-    flutterVersionCode = '1'
-}
-
-def flutterVersionName = localProperties.getProperty('flutter.versionName')
-if (flutterVersionName == null) {
-    flutterVersionName = '1.0.0'
-}
-
 plugins {
     id "com.android.application"
     id "kotlin-android"
     id "dev.flutter.flutter-gradle-plugin"
 }
 
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withReader("UTF-8") { reader ->
+        localProperties.load(reader)
+    }
+}
+
+def flutterVersionCode = localProperties.getProperty("flutter.versionCode") ?: "1"
+def flutterVersionName = localProperties.getProperty("flutter.versionName") ?: "1.0.0"
+
 android {
-    namespace "com.alldownloader"
-    compileSdk 34
-    ndkVersion flutter.ndkVersion
+    namespace "com.fluttide.app"
+    compileSdk 35
+    // Pinned explicitly: several plugins (file_picker, path_provider,
+    // shared_preferences, share_plus) require this NDK version, which is
+    // higher than the Flutter default (flutter.ndkVersion) on some
+    // toolchains and otherwise only shows as a warning, not a failure.
+    ndkVersion "27.0.12077973"
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
-        coreLibraryDesugaringEnabled true
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
+        jvmTarget = '17'
     }
 
     sourceSets {
@@ -42,25 +38,30 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.alldownloader"
-        minSdkVersion 24
-        targetSdkVersion 34
+        applicationId "com.fluttide.app"
+        minSdkVersion 23
+        targetSdkVersion 35
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
-        multiDexEnabled true
+        // NOTE: no ndk { abiFilters ... } here on purpose (Zero ABI Conflict Rule) -
+        // target platform is controlled from the build command in CI instead.
     }
 
     buildTypes {
         release {
-            // Signed with the debug keystore by default so the CI build
-            // produces an installable APK out of the box. Replace with a
-            // dedicated release keystore before publishing to a store.
+            // Signed with the debug config on purpose: no real release
+            // keystore exists in this repo, and referencing one that
+            // doesn't exist is exactly what caused the CI build to fail
+            // ("Keystore file ... not found for signing config 'release'").
+            // Swap this for your own signingConfigs.release once you add
+            // a real keystore.
             signingConfig signingConfigs.debug
             minifyEnabled false
             shrinkResources false
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }
         debug {
-            applicationIdSuffix ".debug"
+            signingConfig signingConfigs.debug
         }
     }
 }
@@ -70,5 +71,5 @@ flutter {
 }
 
 dependencies {
-    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'
+    // Kept intentionally empty - Flutter plugins bring their own deps.
 }

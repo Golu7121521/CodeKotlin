@@ -1,39 +1,43 @@
+import 'dart:convert';
 import 'dart:io';
-
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../models/project_model.dart';
 
-/// Provides aggregate storage statistics used on the Settings screen.
 class StorageService {
-  Future<int> getDirectorySize(Directory dir) async {
-    if (!await dir.exists()) return 0;
-    var total = 0;
-    try {
-      await for (final entity in dir.list(recursive: true, followLinks: false)) {
-        if (entity is File) {
-          try {
-            total += await entity.length();
-          } catch (_) {
-            // Skip unreadable files.
-          }
-        }
-      }
-    } catch (_) {
-      // Directory may not be accessible; return what we have so far.
-    }
-    return total;
+  static const _projectsKey = 'flutide_projects_v1';
+
+  static Future<Directory> projectsRoot() async {
+    final base = await getApplicationDocumentsDirectory();
+    final dir = Directory('${base.path}/FlutideProjects');
+    if (!await dir.exists()) await dir.create(recursive: true);
+    return dir;
   }
 
-  Future<int> getAppCacheSize() async {
-    final dir = await getTemporaryDirectory();
-    return getDirectorySize(dir);
+  static Future<List<Project>> loadProjects() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_projectsKey);
+    if (raw == null) return [];
+    final list = (jsonDecode(raw) as List).cast<Map<String, dynamic>>();
+    return list.map(Project.fromJson).toList();
   }
 
-  Future<Map<String, int>> getDiskStats() async {
-    // Best-effort: Dart has no direct cross-platform disk stat API without
-    // platform channels, so we report app-scoped sizes only, which is what
-    // the Settings screen actually needs.
-    return {
-      'cache': await getAppCacheSize(),
-    };
+  static Future<void> saveProjects(List<Project> projects) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = jsonEncode(projects.map((p) => p.toJson()).toList());
+    await prefs.setString(_projectsKey, raw);
+  }
+
+  static Future<void> addProject(Project project) async {
+    final projects = await loadProjects();
+    projects.removeWhere((p) => p.path == project.path);
+    projects.insert(0, project);
+    await saveProjects(projects);
+  }
+
+  static Future<void> removeProject(Project project) async {
+    final projects = await loadProjects();
+    projects.removeWhere((p) => p.path == project.path);
+    await saveProjects(projects);
   }
 }

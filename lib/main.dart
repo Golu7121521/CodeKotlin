@@ -1,26 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'theme/app_theme.dart';
+import 'screens/home_screen.dart';
 
-import 'app.dart';
-import 'providers/downloads_provider.dart';
-import 'providers/settings_provider.dart';
+void main() {
+  runApp(const FlutideApp());
+}
 
-Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+class FlutideApp extends StatelessWidget {
+  const FlutideApp({super.key});
 
-  final settingsProvider = SettingsProvider();
-  await settingsProvider.load();
-
-  final downloadsProvider = DownloadsProvider();
-  await downloadsProvider.loadFromDatabase();
-
-  runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider.value(value: settingsProvider),
-        ChangeNotifierProvider.value(value: downloadsProvider),
-      ],
-      child: const AllVideoDownloaderApp(),
-    ),
-  );
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'FlutIDE',
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.dark(),
+      home: const HomeScreen(),
+    );
+  }
 }

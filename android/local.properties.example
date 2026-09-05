@@ -1,0 +1,8 @@
+# Rename this file to local.properties and set your local Flutter SDK path.
+# This file is git-ignored; GitHub Actions (subosito/flutter-action) creates
+# its own local.properties automatically during CI, so you do NOT need to
+# commit a real one.
+sdk.dir=/path/to/Android/sdk
+flutter.sdk=/path/to/flutter
+flutter.versionCode=1
+flutter.versionName=1.0.0
