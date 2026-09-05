@@ -40,6 +40,7 @@ class TerminalEngine(context: Context) {
 
     fun clone(ownerRepo: String): String {
         requireToken()
+        requireStoragePermission()
         val api = GitHubApi(token())
         val zipBytes = api.downloadRepoZip(ownerRepo)
         val destName = ownerRepo.replace("/", "_")
@@ -57,9 +58,22 @@ class TerminalEngine(context: Context) {
                 if (relative.isNotEmpty()) {
                     val outFile = File(destDir, relative)
                     if (entry.isDirectory) {
-                        outFile.mkdirs()
+                        if (!outFile.exists() && !outFile.mkdirs()) {
+                            throw IllegalStateException(
+                                "Failed to create directory: ${outFile.absolutePath}. " +
+                                    "Check storage permission (Settings > Apps > this app > " +
+                                    "Permissions > All files access)."
+                            )
+                        }
                     } else {
-                        outFile.parentFile?.mkdirs()
+                        val parent = outFile.parentFile
+                        if (parent != null && !parent.exists() && !parent.mkdirs()) {
+                            throw IllegalStateException(
+                                "Failed to create directory: ${parent.absolutePath}. " +
+                                    "Check storage permission (Settings > Apps > this app > " +
+                                    "Permissions > All files access)."
+                            )
+                        }
                         outFile.outputStream().use { fos ->
                             zis.copyTo(fos)
                         }
@@ -133,6 +147,16 @@ class TerminalEngine(context: Context) {
     private fun requireToken() {
         if (token().isBlank()) {
             throw IllegalStateException("No GitHub token set. Use: token <your_pat>")
+        }
+    }
+
+    private fun requireStoragePermission() {
+        if (!StorageUtil.hasStoragePermission()) {
+            throw IllegalStateException(
+                "Storage permission not granted. Go to Settings > Apps > " +
+                    "VS Code Mobile IDE & CI/CD Terminal > Permissions > " +
+                    "allow \"All files access\", then retry."
+            )
         }
     }
 
