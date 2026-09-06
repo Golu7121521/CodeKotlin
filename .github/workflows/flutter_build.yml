@@ -47,7 +47,7 @@ jobs:
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
-          cache: true
+          cache: false
 
       - name: Verify profile_screen.dart has the required import
         run: |
