@@ -1,10 +1,14 @@
 # AdBlock Browser (Android)
 
 Simple WebView-based Android browser jisme:
-- **Ad + tracker blocking** — `app/src/main/assets/adblock_hosts.txt` list ke hosts ki requests drop ho jaati hain (`shouldInterceptRequest`).
-- **Popup / redirect blocking** — `window.open`, `target="_blank"` popups aur ad redirects (`onCreateWindow` returning `false`, non-http(s) scheme navigation block) automatically block hote hain.
-- **Edge-to-edge fullscreen UI** — status bar/nav bar ke peeche content draw hota hai (`WindowCompat.setDecorFitsSystemWindows(false)`), sirf ek chhota address bar + WebView.
+- **Network-level blocking** — 120+ known ad/tracker/analytics domains (Google Ads, DoubleClick, Taboola, Outbrain, Criteo, Facebook Pixel, mobile SDK networks, etc.) ki requests `shouldInterceptRequest` mein hi drop ho jaati hain, response tak nahi jaane deta.
+- **Cosmetic filtering (Brave/uBlock style)** — CSS + JS rules jo har website par ad-shaped elements (`class*="ad-"`, `[data-ad-slot]`, `ins.adsbygoogle`, known ad iframes, YouTube ad overlays, etc.) ko hide/collapse kar dete hain, chahe woh domain block-list mein ho ya na ho. Yeh script `document-start` par hi inject hota hai (page load se pehle) jaise Brave apne filters apply karta hai, phir ek `MutationObserver` continuously naye ads ko bhi pakadta rehta hai.
+- **YouTube ad-skip** — "Skip Ad" button auto-click, unskippable video ads mute+fast-forward.
+- **Popup / redirect blocking** — `window.open`, `target="_blank"` popups aur non-http(s) scheme redirects block.
+- **Edge-to-edge fullscreen UI** — status bar/nav bar ke peeche content draw hota hai, sirf ek chhota address bar + WebView.
 - **GitHub Actions se build** — koi Android Studio local install karne ki zaroorat nahi.
+
+> **Note:** Yeh Brave jaisa hi *approach* use karta hai (network blocklist + cosmetic filters), lekin Brave ka asli adblock-rust engine EasyList/EasyPrivacy ke lakhon regex rules compile karke chalata hai — is app mein ek curated (100+ domain) list + generic CSS patterns hain. Zyadatar common ads/trackers block ho jaayenge, lekin naye/obscure ad networks kabhi-kabhi nikal sakte hain.
 
 ## GitHub par APK build kaise karein
 

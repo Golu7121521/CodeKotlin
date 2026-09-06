@@ -27,6 +27,99 @@ import java.net.URI
 
 class MainActivity : AppCompatActivity() {
 
+    // ---- Universal cosmetic filtering ----
+    // This mirrors what Brave/uBlock Origin call "cosmetic filters": generic
+    // CSS + JS that hides ad-shaped elements on ANY website, not just known
+    // ad-network hosts. Runs on every page.
+    private val universalAdBlockJs = """
+        (function() {
+            if (window.__cosmeticAdBlockInjected) return;
+            window.__cosmeticAdBlockInjected = true;
+
+            var css = [
+                // Generic ad container patterns used across most sites
+                '[class*="ad-banner" i]','[id*="ad-banner" i]',
+                '[class^="ad-" i]','[class*=" ad-" i]','[id^="ad-" i]','[id*=" ad-" i]',
+                '[class*="advert" i]','[id*="advert" i]',
+                '[class*="sponsor" i]','[id*="sponsor" i]',
+                '[class*="google-ad" i]','[id*="google-ad" i]',
+                '[class*="banner-ad" i]','[id*="banner-ad" i]',
+                '[class*="ad-container" i]','[id*="ad-container" i]',
+                '[class*="ad-wrapper" i]','[id*="ad-wrapper" i]',
+                '[class*="ad-slot" i]','[id*="ad-slot" i]',
+                '[class*="ad_unit" i]','[id*="ad_unit" i]',
+                '[class*="adsbygoogle" i]',
+                'ins.adsbygoogle',
+                'div[id^="div-gpt-ad"]',
+                'div[id*="google_ads"]',
+                'iframe[src*="doubleclick.net" i]',
+                'iframe[src*="googlesyndication.com" i]',
+                'iframe[src*="googleadservices.com" i]',
+                'iframe[id^="google_ads_iframe"]',
+                'iframe[src*="ads.pubmatic.com" i]',
+                'iframe[src*="amazon-adsystem.com" i]',
+                'iframe[src*="taboola" i]',
+                'iframe[src*="outbrain" i]',
+                '.taboola-widget','.OUTBRAIN','.trc_related_container',
+                '.fb-ad','.adsbygoogle-noablate',
+                '[data-ad-client]','[data-ad-slot]',
+                '.ad-placement','.ad-slot-container','.dfp-ad',
+                'ytd-companion-slot-renderer','ytd-ad-slot-renderer',
+                'ytd-display-ad-renderer','ytd-promoted-sparkles-web-renderer',
+                'ytd-promoted-video-renderer','#masthead-ad',
+                '.video-ads','.ytp-ad-module','.ytp-ad-overlay-container',
+                '.ytp-ad-text-overlay'
+            ].join(',');
+
+            var style = document.createElement('style');
+            style.id = '__adblock_cosmetic_style';
+            style.textContent = css + ' { display: none !important; visibility: hidden !important; height: 0 !important; }';
+            (document.head || document.documentElement).appendChild(style);
+
+            function collapseEmptyAdFrames() {
+                document.querySelectorAll('iframe').forEach(function(f) {
+                    var src = f.src || '';
+                    if (/doubleclick|googlesyndication|googleadservices|adsystem|pubmatic|taboola|outbrain|criteo|rubiconproject|openx|adnxs/i.test(src)) {
+                        f.style.display = 'none';
+                        var p = f.parentElement;
+                        if (p && p.children.length === 1) p.style.display = 'none';
+                    }
+                });
+            }
+
+            function skipYoutubeAds() {
+                var skipSelectors = [
+                    '.ytp-ad-skip-button', '.ytp-ad-skip-button-modern',
+                    '.ytp-skip-ad-button', 'button.ytp-ad-overlay-close-button'
+                ];
+                skipSelectors.forEach(function(sel) {
+                    var btn = document.querySelector(sel);
+                    if (btn) btn.click();
+                });
+                var adShowing = document.querySelector('.ad-showing, .ad-interrupting');
+                var player = document.querySelector('.html5-video-player video, video');
+                if (adShowing && player && player.duration) {
+                    try {
+                        player.currentTime = player.duration;
+                        player.muted = true;
+                        player.playbackRate = 16;
+                    } catch (e) {}
+                }
+            }
+
+            function run() {
+                collapseEmptyAdFrames();
+                skipYoutubeAds();
+            }
+
+            run();
+            setInterval(run, 500);
+
+            var observer = new MutationObserver(run);
+            observer.observe(document.documentElement, { childList: true, subtree: true });
+        })();
+    """.trimIndent()
+
     private lateinit var binding: ActivityMainBinding
     private val blockedHosts = HashSet<String>()
     private val emptyResponse: WebResourceResponse by lazy {
@@ -113,6 +206,17 @@ class MainActivity : AppCompatActivity() {
         // ---- Block popups / new windows (a common ad-redirect vector) ----
         webView.setOnLongClickListener(null)
 
+        // Inject the cosmetic filter as early as possible (before the page's
+        // own scripts run), similar to how Brave/uBlock apply filters at
+        // document-start rather than waiting for page load to finish.
+        if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.DOCUMENT_START_SCRIPT)) {
+            androidx.webkit.WebViewCompat.addDocumentStartJavaScript(
+                webView,
+                universalAdBlockJs,
+                setOf("*")
+            )
+        }
+
         webView.webViewClient = object : WebViewClient() {
             override fun shouldInterceptRequest(
                 view: WebView,
@@ -140,11 +244,13 @@ class MainActivity : AppCompatActivity() {
             override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
                 binding.urlBar.setText(url)
                 binding.progressBar.visibility = View.VISIBLE
+                view.evaluateJavascript(universalAdBlockJs, null)
             }
 
             override fun onPageFinished(view: WebView, url: String) {
                 binding.urlBar.setText(url)
                 binding.progressBar.visibility = View.GONE
+                view.evaluateJavascript(universalAdBlockJs, null)
             }
         }
 
