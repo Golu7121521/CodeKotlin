@@ -1,0 +1,8 @@
+<resources>
+    <color name="terminal_background">#121212</color>
+    <color name="terminal_surface">#1A1A1A</color>
+    <color name="terminal_neon_green">#00FF66</color>
+    <color name="terminal_amber_warn">#FFB300</color>
+    <color name="terminal_red_error">#FF5252</color>
+    <color name="terminal_text_dim">#7A7A7A</color>
+</resources>
