@@ -1,196 +1,116 @@
 import 'dart:convert';
+
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/song.dart';
 
-/// Local persistence for favorites, recently played, and playlists.
-/// Backed by SharedPreferences with JSON-serialized song lists.
+/// Persists the user's watchlist ("My List") and per-movie playback
+/// resume positions to local storage via SharedPreferences.
 class StorageService {
-  static const String _keyFavorites = 'favorites';
-  static const String _keyRecentlyPlayed = 'recently_played';
-  static const String _keyPlaylistNames = 'playlist_names';
-  static const String _keyPlaylistPrefix = 'playlist_';
-  static const String _keyThemeMode = 'theme_mode';
-  static const int _maxRecentlyPlayed = 50;
+  static const _keyWatchlist = 'storage.watchlist';
+  static const _keyPlaybackPrefix = 'storage.playback.';
+  static const _keyPerformanceMode = 'storage.performanceMode';
 
-  Future<SharedPreferences> get _prefs async => SharedPreferences.getInstance();
-
-  // ---------------- Theme ----------------
-
-  Future<String> getThemeMode() async {
-    final prefs = await _prefs;
-    return prefs.getString(_keyThemeMode) ?? 'system';
+  Future<Set<int>> getWatchlistIds() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getStringList(_keyWatchlist) ?? const [];
+    return raw.map(int.parse).toSet();
   }
 
-  Future<void> setThemeMode(String mode) async {
-    final prefs = await _prefs;
-    await prefs.setString(_keyThemeMode, mode);
-  }
-
-  // ---------------- Favorites ----------------
-
-  Future<List<Song>> getFavorites() async {
-    final prefs = await _prefs;
-    return _decodeSongList(prefs.getString(_keyFavorites));
-  }
-
-  Future<bool> isFavorite(Song song) async {
-    final favorites = await getFavorites();
-    return favorites.any((s) => s.identityKey == song.identityKey);
-  }
-
-  /// Returns true if the song is now favorited, false if it was removed.
-  Future<bool> toggleFavorite(Song song) async {
-    final prefs = await _prefs;
-    final favorites = await getFavorites();
-
-    final existingIndex = favorites.indexWhere((s) => s.identityKey == song.identityKey);
-    bool nowFavorite;
-
-    if (existingIndex >= 0) {
-      favorites.removeAt(existingIndex);
-      nowFavorite = false;
+  Future<void> toggleWatchlist(int movieId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final current = (prefs.getStringList(_keyWatchlist) ?? const []).toSet();
+    final idStr = '$movieId';
+    if (current.contains(idStr)) {
+      current.remove(idStr);
     } else {
-      favorites.insert(0, song);
-      nowFavorite = true;
+      current.add(idStr);
     }
-
-    await prefs.setString(_keyFavorites, _encodeSongList(favorites));
-    return nowFavorite;
+    await prefs.setStringList(_keyWatchlist, current.toList());
   }
 
-  // ---------------- Recently Played ----------------
-
-  Future<List<Song>> getRecentlyPlayed() async {
-    final prefs = await _prefs;
-    return _decodeSongList(prefs.getString(_keyRecentlyPlayed));
+  Future<bool> isInWatchlist(int movieId) async {
+    final ids = await getWatchlistIds();
+    return ids.contains(movieId);
   }
 
-  Future<void> addRecentlyPlayed(Song song) async {
-    final prefs = await _prefs;
-    final recent = await getRecentlyPlayed();
-
-    recent.removeWhere((s) => s.identityKey == song.identityKey);
-    recent.insert(0, song);
-
-    while (recent.length > _maxRecentlyPlayed) {
-      recent.removeLast();
-    }
-
-    await prefs.setString(_keyRecentlyPlayed, _encodeSongList(recent));
+  /// Saves the current playback position (in seconds) for a movie, used
+  /// to power "Continue Watching" and resume-from-last-position.
+  Future<void> savePlaybackPosition(int movieId, Duration position, Duration total) async {
+    final prefs = await SharedPreferences.getInstance();
+    final payload = jsonEncode({
+      'positionMs': position.inMilliseconds,
+      'totalMs': total.inMilliseconds,
+      'updatedAt': DateTime.now().millisecondsSinceEpoch,
+    });
+    await prefs.setString('$_keyPlaybackPrefix$movieId', payload);
   }
 
-  Future<void> clearRecentlyPlayed() async {
-    final prefs = await _prefs;
-    await prefs.setString(_keyRecentlyPlayed, '[]');
-  }
-
-  // ---------------- Playlists ----------------
-
-  Future<List<String>> getPlaylistNames() async {
-    final prefs = await _prefs;
-    final raw = prefs.getString(_keyPlaylistNames);
-    if (raw == null) return [];
+  Future<PlaybackPosition?> getPlaybackPosition(int movieId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('$_keyPlaybackPrefix$movieId');
+    if (raw == null) return null;
     try {
-      final List<dynamic> list = jsonDecode(raw);
-      return list.map((e) => e.toString()).toList();
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      return PlaybackPosition(
+        position: Duration(milliseconds: decoded['positionMs'] as int? ?? 0),
+        total: Duration(milliseconds: decoded['totalMs'] as int? ?? 0),
+        updatedAt: DateTime.fromMillisecondsSinceEpoch(
+          decoded['updatedAt'] as int? ?? DateTime.now().millisecondsSinceEpoch,
+        ),
+      );
     } catch (_) {
-      return [];
+      return null;
     }
   }
 
-  Future<bool> createPlaylist(String name) async {
-    final trimmed = name.trim();
-    if (trimmed.isEmpty) return false;
-
-    final names = await getPlaylistNames();
-    if (names.any((n) => n.toLowerCase() == trimmed.toLowerCase())) {
-      return false;
+  /// All movie IDs with a saved in-progress position, most-recent first
+  /// — backs the "Continue Watching" row.
+  Future<List<int>> getContinueWatchingIds() async {
+    final prefs = await SharedPreferences.getInstance();
+    final keys = prefs.getKeys().where((k) => k.startsWith(_keyPlaybackPrefix));
+    final entries = <MapEntry<int, DateTime>>[];
+    for (final key in keys) {
+      final movieId = int.tryParse(key.substring(_keyPlaybackPrefix.length));
+      if (movieId == null) continue;
+      final pos = await getPlaybackPosition(movieId);
+      if (pos == null) continue;
+      // Treat >=95% watched as complete; exclude from Continue Watching.
+      if (pos.total.inMilliseconds > 0 &&
+          pos.position.inMilliseconds / pos.total.inMilliseconds >= 0.95) {
+        continue;
+      }
+      entries.add(MapEntry(movieId, pos.updatedAt));
     }
-
-    names.add(trimmed);
-    await _savePlaylistNames(names);
-
-    final prefs = await _prefs;
-    await prefs.setString(_playlistKey(trimmed), '[]');
-    return true;
+    entries.sort((a, b) => b.value.compareTo(a.value));
+    return entries.map((e) => e.key).toList();
   }
 
-  Future<void> deletePlaylist(String name) async {
-    final names = await getPlaylistNames();
-    names.remove(name);
-    await _savePlaylistNames(names);
-
-    final prefs = await _prefs;
-    await prefs.remove(_playlistKey(name));
+  Future<AppPerformanceModePref> getPerformanceMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    final value = prefs.getString(_keyPerformanceMode);
+    return value == 'reduced' ? AppPerformanceModePref.reduced : AppPerformanceModePref.auto;
   }
 
-  Future<bool> renamePlaylist(String oldName, String newName) async {
-    final trimmedNew = newName.trim();
-    if (trimmedNew.isEmpty) return false;
-
-    final names = await getPlaylistNames();
-    if (!names.contains(oldName)) return false;
-    if (names.any((n) => n.toLowerCase() == trimmedNew.toLowerCase())) {
-      return false;
-    }
-
-    final songs = await getPlaylistSongs(oldName);
-
-    final index = names.indexOf(oldName);
-    names[index] = trimmedNew;
-    await _savePlaylistNames(names);
-
-    final prefs = await _prefs;
-    await prefs.remove(_playlistKey(oldName));
-    await prefs.setString(_playlistKey(trimmedNew), _encodeSongList(songs));
-    return true;
-  }
-
-  Future<List<Song>> getPlaylistSongs(String name) async {
-    final prefs = await _prefs;
-    return _decodeSongList(prefs.getString(_playlistKey(name)));
-  }
-
-  Future<void> addSongToPlaylist(String name, Song song) async {
-    final songs = await getPlaylistSongs(name);
-    if (songs.any((s) => s.identityKey == song.identityKey)) return;
-
-    songs.add(song);
-    final prefs = await _prefs;
-    await prefs.setString(_playlistKey(name), _encodeSongList(songs));
-  }
-
-  Future<void> removeSongFromPlaylist(String name, Song song) async {
-    final songs = await getPlaylistSongs(name);
-    songs.removeWhere((s) => s.identityKey == song.identityKey);
-
-    final prefs = await _prefs;
-    await prefs.setString(_playlistKey(name), _encodeSongList(songs));
-  }
-
-  Future<void> _savePlaylistNames(List<String> names) async {
-    final prefs = await _prefs;
-    await prefs.setString(_keyPlaylistNames, jsonEncode(names));
-  }
-
-  String _playlistKey(String name) => '$_keyPlaylistPrefix$name';
-
-  // ---------------- Encoding helpers ----------------
-
-  String _encodeSongList(List<Song> songs) {
-    return jsonEncode(songs.map((s) => s.toStorageJson()).toList());
-  }
-
-  List<Song> _decodeSongList(String? raw) {
-    if (raw == null || raw.isEmpty) return [];
-    try {
-      final List<dynamic> list = jsonDecode(raw);
-      return list
-          .whereType<Map<String, dynamic>>()
-          .map((e) => Song.fromStorageJson(e))
-          .toList();
-    } catch (_) {
-      return [];
-    }
+  Future<void> setPerformanceMode(AppPerformanceModePref mode) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyPerformanceMode, mode.name);
   }
 }
+
+class PlaybackPosition {
+  final Duration position;
+  final Duration total;
+  final DateTime updatedAt;
+
+  const PlaybackPosition({
+    required this.position,
+    required this.total,
+    required this.updatedAt,
+  });
+
+  double get fraction {
+    if (total.inMilliseconds <= 0) return 0.0;
+    return (position.inMilliseconds / total.inMilliseconds).clamp(0.0, 1.0);
+  }
+}
+
+enum AppPerformanceModePref { auto, reduced }

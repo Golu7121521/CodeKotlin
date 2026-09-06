@@ -1,155 +1,143 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
-/// Signature "Synesthesia" palette: electric violet -> magenta -> cyan,
-/// carried over from the native Android build, now expressed for both
-/// dark and light Material themes.
-class AppColors {
-  static const Color accentViolet = Color(0xFF7C3AFF);
-  static const Color accentVioletDark = Color(0xFF4C1D9E);
-  static const Color accentMagenta = Color(0xFFFF3D9A);
-  static const Color accentCyan = Color(0xFF22E5FF);
+import 'app_colors.dart';
+import 'app_spacing.dart';
+import 'app_typography.dart';
 
-  // Dark theme surfaces
-  static const Color darkBgPrimary = Color(0xFF07060D);
-  static const Color darkBgSecondary = Color(0xFF0E0C1A);
-  static const Color darkSurfaceCard = Color(0xFF17142A);
-  static const Color darkSurfaceElevated = Color(0xFF201B38);
-  static const Color darkTextPrimary = Color(0xFFFFFFFF);
-  static const Color darkTextSecondary = Color(0xFFB4ACD1);
-  static const Color darkTextTertiary = Color(0xFF6E6690);
-  static const Color darkStroke = Color(0xFF2A2447);
-
-  // Light theme surfaces
-  static const Color lightBgPrimary = Color(0xFFF7F5FB);
-  static const Color lightBgSecondary = Color(0xFFFFFFFF);
-  static const Color lightSurfaceCard = Color(0xFFFFFFFF);
-  static const Color lightSurfaceElevated = Color(0xFFF0EDF7);
-  static const Color lightTextPrimary = Color(0xFF1A1625);
-  static const Color lightTextSecondary = Color(0xFF6B647F);
-  static const Color lightTextTertiary = Color(0xFF9992AC);
-  static const Color lightStroke = Color(0xFFE4DFF0);
-
-  static const Color successGreen = Color(0xFF2EE6A6);
-  static const Color errorRed = Color(0xFFFF5C7A);
-
-  static const LinearGradient heroGradient = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [accentVioletDark, accentViolet, accentMagenta],
-  );
-
-  static const LinearGradient playButtonGradient = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [accentViolet, accentMagenta, accentCyan],
-  );
-}
-
+/// Assembles the design tokens (colors, typography, spacing) into a
+/// single Material 3 [ThemeData]. MovieStream is a single-theme (always
+/// dark, OLED-true-black) product by design — a "light mode" would break
+/// the cinematic viewing philosophy — so there is deliberately no light
+/// theme variant here.
 class AppTheme {
-  static ThemeData get darkTheme {
-    final base = ThemeData.dark(useMaterial3: true);
-    final textTheme = GoogleFonts.interTextTheme(base.textTheme).apply(
-      bodyColor: AppColors.darkTextPrimary,
-      displayColor: AppColors.darkTextPrimary,
+  AppTheme._();
+
+  static ThemeData dark() {
+    const scheme = ColorScheme.dark(
+      surface: AppColors.bgBase,
+      onSurface: AppColors.textPrimary,
+      primary: AppColors.accentBrand,
+      onPrimary: AppColors.textOnAccent,
+      secondary: AppColors.accentSecondary,
+      onSecondary: AppColors.textOnAccent,
+      error: AppColors.error,
+      onError: AppColors.textPrimary,
+      surfaceContainerHighest: AppColors.bgSurfaceElevatedHigh,
     );
 
-    return base.copyWith(
-      scaffoldBackgroundColor: AppColors.darkBgPrimary,
-      primaryColor: AppColors.accentViolet,
-      colorScheme: base.colorScheme.copyWith(
-        primary: AppColors.accentViolet,
-        secondary: AppColors.accentMagenta,
-        surface: AppColors.darkSurfaceCard,
-        error: AppColors.errorRed,
-      ),
-      textTheme: textTheme,
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      colorScheme: scheme,
+      scaffoldBackgroundColor: AppColors.bgBase,
+      fontFamily: AppTypography.fontFamily,
+      splashFactory: InkRipple.splashFactory,
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        systemOverlayStyle: null,
+        scrolledUnderElevation: 0,
+        foregroundColor: AppColors.textPrimary,
+        centerTitle: false,
       ),
-      cardColor: AppColors.darkSurfaceCard,
-      dividerColor: AppColors.darkStroke,
-      iconTheme: const IconThemeData(color: AppColors.darkTextPrimary),
-      bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor: AppColors.darkBgSecondary,
-        selectedItemColor: AppColors.accentViolet,
-        unselectedItemColor: AppColors.darkTextSecondary,
-        type: BottomNavigationBarType.fixed,
-      ),
-      sliderTheme: SliderThemeData(
-        activeTrackColor: AppColors.accentViolet,
-        inactiveTrackColor: AppColors.darkSurfaceElevated,
-        thumbColor: AppColors.accentMagenta,
-        overlayColor: AppColors.accentViolet.withOpacity(0.2),
-        trackHeight: 3,
-      ),
-    );
-  }
-
-  static ThemeData get lightTheme {
-    final base = ThemeData.light(useMaterial3: true);
-    final textTheme = GoogleFonts.interTextTheme(base.textTheme).apply(
-      bodyColor: AppColors.lightTextPrimary,
-      displayColor: AppColors.lightTextPrimary,
-    );
-
-    return base.copyWith(
-      scaffoldBackgroundColor: AppColors.lightBgPrimary,
-      primaryColor: AppColors.accentViolet,
-      colorScheme: base.colorScheme.copyWith(
-        primary: AppColors.accentViolet,
-        secondary: AppColors.accentMagenta,
-        surface: AppColors.lightSurfaceCard,
-        error: AppColors.errorRed,
-      ),
-      textTheme: textTheme,
-      appBarTheme: const AppBarTheme(
-        backgroundColor: Colors.transparent,
+      cardTheme: CardThemeData(
         elevation: 0,
-        systemOverlayStyle: null,
+        color: AppColors.bgSurface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          side: const BorderSide(color: AppColors.borderSubtle),
+        ),
+        margin: EdgeInsets.zero,
       ),
-      cardColor: AppColors.lightSurfaceCard,
-      dividerColor: AppColors.lightStroke,
-      iconTheme: const IconThemeData(color: AppColors.lightTextPrimary),
-      bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor: AppColors.lightBgSecondary,
-        selectedItemColor: AppColors.accentViolet,
-        unselectedItemColor: AppColors.lightTextSecondary,
-        type: BottomNavigationBarType.fixed,
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: AppColors.accentBrand,
+          foregroundColor: AppColors.textOnAccent,
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.xxl,
+            vertical: AppSpacing.lg,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+          ),
+          textStyle: AppTypography.labelLg,
+        ),
       ),
-      sliderTheme: SliderThemeData(
-        activeTrackColor: AppColors.accentViolet,
-        inactiveTrackColor: AppColors.lightSurfaceElevated,
-        thumbColor: AppColors.accentMagenta,
-        overlayColor: AppColors.accentViolet.withOpacity(0.15),
-        trackHeight: 3,
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.textPrimary,
+          side: const BorderSide(color: AppColors.borderStrong),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.xl,
+            vertical: AppSpacing.md,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+          ),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: AppColors.bgSurfaceElevated,
+        hintStyle: AppTypography.bodyLg.copyWith(color: AppColors.textTertiary),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.lg,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+          borderSide: const BorderSide(color: AppColors.accentBrand, width: 1.5),
+        ),
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: AppColors.bgSurfaceElevated.withValues(alpha: 0.92),
+        elevation: 0,
+        height: 64,
+        indicatorColor: AppColors.accentBrandMuted,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+      ),
+      progressIndicatorTheme: const ProgressIndicatorThemeData(
+        color: AppColors.accentBrand,
+        linearTrackColor: AppColors.bgSurfaceElevatedHigh,
+      ),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: AppColors.bgSurfaceElevatedHigh,
+        contentTextStyle: AppTypography.bodyMd.copyWith(color: AppColors.textPrimary),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+        ),
+      ),
+      dividerTheme: const DividerThemeData(
+        color: AppColors.borderSubtle,
+        thickness: 1,
+        space: 1,
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: AppColors.bgSurfaceElevated,
+        selectedColor: AppColors.accentBrand,
+        labelStyle: AppTypography.labelSm,
+        secondaryLabelStyle: AppTypography.labelSm.copyWith(color: AppColors.textOnAccent),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
+          side: const BorderSide(color: AppColors.borderDefault),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
       ),
     );
   }
 }
 
-/// Theme-aware color accessor so widgets don't need to branch on
-/// Theme.of(context).brightness everywhere.
-class AppColorsX {
-  final BuildContext context;
-  AppColorsX(this.context);
-
-  bool get _isDark => Theme.of(context).brightness == Brightness.dark;
-
-  Color get bgPrimary => _isDark ? AppColors.darkBgPrimary : AppColors.lightBgPrimary;
-  Color get bgSecondary => _isDark ? AppColors.darkBgSecondary : AppColors.lightBgSecondary;
-  Color get surfaceCard => _isDark ? AppColors.darkSurfaceCard : AppColors.lightSurfaceCard;
-  Color get surfaceElevated =>
-      _isDark ? AppColors.darkSurfaceElevated : AppColors.lightSurfaceElevated;
-  Color get textPrimary => _isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-  Color get textSecondary =>
-      _isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
-  Color get textTertiary => _isDark ? AppColors.darkTextTertiary : AppColors.lightTextTertiary;
-  Color get stroke => _isDark ? AppColors.darkStroke : AppColors.lightStroke;
-}
-
-extension AppColorsExtension on BuildContext {
-  AppColorsX get colors => AppColorsX(this);
-}
+/// Runtime performance mode used for the "Low-End Device Fallback" spec:
+/// on detected low-end devices (or when the user opts in via Settings),
+/// the app disables blur/glassmorphism effects, clamps animation
+/// durations toward zero, and swaps shimmer loading effects for static
+/// placeholders.
+enum AppPerformanceMode { full, reduced }

@@ -1,124 +1,92 @@
 import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
-import '../models/song.dart';
 
-enum DownloadStatus { idle, requesting, downloading, completed, failed }
+import '../models/download_item_model.dart';
 
-class DownloadProgress {
-  final DownloadStatus status;
-  final double progress; // 0.0 - 1.0
-  final String? filePath;
-  final String? errorMessage;
-
-  DownloadProgress({
-    required this.status,
-    this.progress = 0.0,
-    this.filePath,
-    this.errorMessage,
-  });
+class DownloadFailure implements Exception {
+  final String message;
+  DownloadFailure(this.message);
+  @override
+  String toString() => 'DownloadFailure: $message';
 }
 
-/// Handles downloading a song's audio file to the device's public
-/// Downloads folder (Android) using path_provider + permission_handler + dio.
+/// Handles saving a resolved stream URL to local storage for offline
+/// playback, with progress monitoring and cancellation support. Uses Dio
+/// for its built-in download progress callbacks and cancel tokens.
 class DownloadService {
-  final Dio _dio = Dio();
+  DownloadService({Dio? dio}) : _dio = dio ?? Dio();
 
-  /// Requests storage permission where required. On Android 13+ (API 33+)
-  /// scoped storage means broad WRITE_EXTERNAL_STORAGE isn't needed for
-  /// writing to the public Downloads directory via MediaStore-safe paths,
-  /// but we still request on older APIs where it's required.
-  Future<bool> _ensurePermission() async {
-    if (!Platform.isAndroid) return true;
+  final Dio _dio;
+  final Map<int, CancelToken> _cancelTokens = {};
 
-    final status = await Permission.storage.status;
-    if (status.isGranted) return true;
-
-    final result = await Permission.storage.request();
-    return result.isGranted;
-  }
-
-  /// Returns the public Downloads directory on Android, or the app
-  /// documents directory as a fallback on platforms without a public
-  /// Downloads concept.
-  Future<Directory> _resolveDownloadsDirectory() async {
-    if (Platform.isAndroid) {
-      // Standard public Downloads path on Android.
-      final downloadsDir = Directory('/storage/emulated/0/Download/Synesthesia');
-      if (!await downloadsDir.exists()) {
-        await downloadsDir.create(recursive: true);
-      }
-      return downloadsDir;
+  Future<Directory> getDownloadsDirectory() async {
+    final base = await getApplicationDocumentsDirectory();
+    final dir = Directory('${base.path}/downloads');
+    if (!await dir.exists()) {
+      await dir.create(recursive: true);
     }
-
-    final dir = await getApplicationDocumentsDirectory();
-    final synesthesiaDir = Directory('${dir.path}/Synesthesia');
-    if (!await synesthesiaDir.exists()) {
-      await synesthesiaDir.create(recursive: true);
-    }
-    return synesthesiaDir;
+    return dir;
   }
 
-  String _sanitizeFileName(String name) {
-    return name.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_').trim();
-  }
-
-  /// Downloads the song's audio to the Downloads/Synesthesia folder.
-  /// Emits progress via [onProgress] callback.
-  Future<void> downloadSong(
-    Song song, {
-    required void Function(DownloadProgress) onProgress,
+  /// Starts (or resumes) a download for [item], reporting progress via
+  /// [onProgress]. Only supports direct-file formats (mp4) — HLS/DASH
+  /// sources are streamed live rather than downloaded in this reference
+  /// implementation, since offline HLS requires manifest+segment
+  /// management beyond a single file download.
+  Future<String> download({
+    required DownloadItem item,
+    required void Function(int received, int total) onProgress,
   }) async {
-    if (!song.hasPlayableUrl) {
-      onProgress(DownloadProgress(
-        status: DownloadStatus.failed,
-        errorMessage: 'This song has no downloadable audio.',
-      ));
-      return;
-    }
+    final dir = await getDownloadsDirectory();
+    final safeName = 'movie_${item.movieId}.mp4';
+    final destPath = '${dir.path}/$safeName';
 
-    onProgress(DownloadProgress(status: DownloadStatus.requesting));
-
-    final hasPermission = await _ensurePermission();
-    if (!hasPermission) {
-      onProgress(DownloadProgress(
-        status: DownloadStatus.failed,
-        errorMessage: 'Storage permission is required to download songs.',
-      ));
-      return;
-    }
+    final cancelToken = CancelToken();
+    _cancelTokens[item.movieId] = cancelToken;
 
     try {
-      final dir = await _resolveDownloadsDirectory();
-      final fileName = '${_sanitizeFileName('${song.artist} - ${song.title}')}.m4a';
-      final filePath = '${dir.path}/$fileName';
-
-      onProgress(DownloadProgress(status: DownloadStatus.downloading, progress: 0));
-
       await _dio.download(
-        song.mediaUrl,
-        filePath,
-        onReceiveProgress: (received, total) {
-          if (total > 0) {
-            onProgress(DownloadProgress(
-              status: DownloadStatus.downloading,
-              progress: received / total,
-            ));
-          }
-        },
+        item.sourceUrl,
+        destPath,
+        cancelToken: cancelToken,
+        onReceiveProgress: onProgress,
       );
-
-      onProgress(DownloadProgress(
-        status: DownloadStatus.completed,
-        progress: 1.0,
-        filePath: filePath,
-      ));
-    } catch (e) {
-      onProgress(DownloadProgress(
-        status: DownloadStatus.failed,
-        errorMessage: 'Download failed. Please try again.',
-      ));
+      return destPath;
+    } on DioException catch (e) {
+      if (CancelToken.isCancel(e)) {
+        throw DownloadFailure('Download cancelled.');
+      }
+      throw DownloadFailure('Download failed: ${e.message ?? 'network error'}');
+    } finally {
+      _cancelTokens.remove(item.movieId);
     }
+  }
+
+  void cancel(int movieId) {
+    _cancelTokens[movieId]?.cancel('User cancelled');
+  }
+
+  /// Checks whether a movie's file is present on disk (used to validate
+  /// the Downloaded state hasn't gone stale, e.g. after the OS clears
+  /// app storage).
+  Future<bool> isDownloadedOnDisk(String localPath) async {
+    if (localPath.isEmpty) return false;
+    return File(localPath).exists();
+  }
+
+  Future<void> deleteDownload(String localPath) async {
+    if (localPath.isEmpty) return;
+    final file = File(localPath);
+    if (await file.exists()) {
+      await file.delete();
+    }
+  }
+
+  Future<int> getDownloadedFileSize(String localPath) async {
+    final file = File(localPath);
+    if (!await file.exists()) return 0;
+    return file.length();
   }
 }

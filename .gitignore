@@ -1,44 +1,38 @@
-# Miscellaneous
-*.class
-*.log
-*.pyc
-*.swp
-.DS_Store
-.atom/
-.buildlog/
-.history
-.svn/
-migrate_working_dir/
-
-# IntelliJ related
-*.iml
-*.ipr
-*.iws
-.idea/
-
-# Flutter/Dart/Pub related
-**/doc/api/
+# Flutter/Dart
 .dart_tool/
+.packages
+build/
 .flutter-plugins
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
-/build/
+pubspec.lock
 
-# Android related
-**/android/**/gradle-wrapper.jar
-**/android/.gradle
-**/android/captures/
-**/android/gradlew
-**/android/gradlew.bat
-**/android/local.properties
-**/android/**/GeneratedPluginRegistrant.java
+# Coverage
+coverage/
 
-# Web related
-lib/generated_plugin_registrant.dart
+# Android
+android/.gradle/
+android/captures/
+android/local.properties
+android/gradlew.log
+android/app/debug
+android/app/profile
+android/app/release
+*.jks
+*.keystore
+key.properties
 
-# Symbolication related
-app.*.symbols
+# IDE
+.idea/
+*.iml
+*.iws
+.vscode/
 
-# Exceptions to above rules.
-!/packages/flutter_tools/test/data/dart_dependencies_test/**/.packages
+# OS
+.DS_Store
+Thumbs.db
+
+# Generated files
+*.g.dart
+*.freezed.dart

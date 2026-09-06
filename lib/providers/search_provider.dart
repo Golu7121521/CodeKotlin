@@ -1,83 +1,82 @@
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
-import '../models/song.dart';
+
+import '../models/movie_model.dart';
 import '../services/api_service.dart';
 
-enum SearchStatus { idle, loading, success, empty, error, offline }
+enum SearchState { idle, loading, loaded, empty, error }
 
+/// Drives the Search screen: debounced predictive search with
+/// pagination (load-more on scroll).
 class SearchProvider extends ChangeNotifier {
-  final ApiService _api = ApiService();
-  Timer? _debounceTimer;
+  SearchProvider({ApiService? apiService}) : _api = apiService ?? ApiService();
 
-  SearchStatus _status = SearchStatus.idle;
-  List<Song> _results = [];
-  String? _errorMessage;
-  String _lastQuery = '';
+  final ApiService _api;
+  Timer? _debounce;
 
-  SearchStatus get status => _status;
-  List<Song> get results => _results;
-  String? get errorMessage => _errorMessage;
+  String _query = '';
+  List<Movie> _results = [];
+  SearchState _state = SearchState.idle;
+  int _page = 1;
+  int _totalPages = 1;
+  bool _isLoadingMore = false;
 
-  void onQueryChanged(String query) {
-    _debounceTimer?.cancel();
+  String get query => _query;
+  List<Movie> get results => _results;
+  SearchState get state => _state;
+  bool get hasMore => _page < _totalPages;
+  bool get isLoadingMore => _isLoadingMore;
 
-    if (query.trim().isEmpty) {
-      _status = SearchStatus.idle;
+  void onQueryChanged(String value) {
+    _query = value;
+    _debounce?.cancel();
+    if (value.trim().isEmpty) {
       _results = [];
+      _state = SearchState.idle;
       notifyListeners();
       return;
     }
-
-    _debounceTimer = Timer(const Duration(milliseconds: 450), () {
-      _executeSearch(query);
-    });
+    _debounce = Timer(const Duration(milliseconds: 400), () => _runSearch(value));
   }
 
-  Future<void> searchImmediately(String query) async {
-    _debounceTimer?.cancel();
-    await _executeSearch(query);
-  }
-
-  Future<void> _executeSearch(String query) async {
-    final trimmed = query.trim();
-    if (trimmed.isEmpty) return;
-    if (trimmed == _lastQuery && _results.isNotEmpty) return;
-
-    _lastQuery = trimmed;
-    _status = SearchStatus.loading;
+  Future<void> _runSearch(String value) async {
+    _state = SearchState.loading;
     notifyListeners();
 
-    final result = await _api.searchSongs(trimmed);
-
-    if (!result.success) {
-      _status = SearchStatus.error;
-      _errorMessage = result.errorMessage;
-      notifyListeners();
-      return;
+    try {
+      final page = await _api.search(value, page: 1);
+      _results = page.results;
+      _page = page.page;
+      _totalPages = page.totalPages;
+      _state = _results.isEmpty ? SearchState.empty : SearchState.loaded;
+    } catch (_) {
+      _state = SearchState.error;
     }
-
-    _results = result.data ?? [];
-    _status = _results.isEmpty ? SearchStatus.empty : SearchStatus.success;
     notifyListeners();
   }
 
-  void retry() {
-    if (_lastQuery.isNotEmpty) {
-      _executeSearch(_lastQuery);
-    }
-  }
+  Future<void> loadMore() async {
+    if (_isLoadingMore || !hasMore || _query.trim().isEmpty) return;
+    _isLoadingMore = true;
+    notifyListeners();
 
-  void reset() {
-    _debounceTimer?.cancel();
-    _status = SearchStatus.idle;
-    _results = [];
-    _lastQuery = '';
+    try {
+      final page = await _api.search(_query, page: _page + 1);
+      _results = [..._results, ...page.results];
+      _page = page.page;
+      _totalPages = page.totalPages;
+    } catch (_) {
+      // Silently keep existing results; load-more failures aren't
+      // critical enough to disrupt an already-successful search.
+    }
+    _isLoadingMore = false;
     notifyListeners();
   }
 
   @override
   void dispose() {
-    _debounceTimer?.cancel();
+    _debounce?.cancel();
     super.dispose();
   }
 }
