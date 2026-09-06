@@ -20,7 +20,7 @@ class ApiResult<T> {
 
 /// All network calls live here, isolated from UI/state-management code.
 class ApiService {
-  static const String _baseUrl = 'https://example-api-dnva.onrender.com/api';
+  static const String _baseUrl = 'https://jiosaavn-api-dnva.onrender.com/api';
   static const Duration _timeout = Duration(seconds: 20);
 
   /// Searches songs by free-text query.
