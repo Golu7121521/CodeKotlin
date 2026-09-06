@@ -25,14 +25,6 @@ if (flutterVersionName == null) {
 android {
     namespace "com.moviestream.movie_stream"
     compileSdk 36
-
-    // Pinned explicitly rather than using flutter.ndkVersion: several
-    // plugins in this project (package_info_plus, path_provider_android,
-    // shared_preferences_android, sqflite_android, video_player_android,
-    // wakelock_plus) require Android NDK 27.0.12077973, which is newer
-    // than the NDK version Flutter's tooling defaults to. Gradle only
-    // warns about this rather than failing outright, but pinning here
-    // avoids relying on that warning being harmless forever.
     ndkVersion "27.0.12077973"
 
     compileOptions {
@@ -56,23 +48,15 @@ android {
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
         multiDexEnabled true
+
+        ndk {
+            abiFilters "arm64-v8a"
+        }
     }
 
     buildTypes {
         release {
-            // Signed with the debug keystore by default so a CI build is
-            // installable out of the box. Replace with a dedicated
-            // release keystore before publishing to a store.
             signingConfig signingConfigs.debug
-
-            // Deliberately OFF: R8 minification on Flutter release
-            // builds has a well-known failure mode where it strips
-            // classes referenced only via reflection (e.g.
-            // SplitCompatApplication from Play Core, or Media3/ExoPlayer
-            // internals), producing a "Missing class" crash at runtime
-            // that's hard to diagnose. Since this build already restricts
-            // itself to a single ABI (arm64-v8a) for size, the extra
-            // size reduction from minification isn't worth that risk.
             minifyEnabled false
             shrinkResources false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
@@ -80,17 +64,6 @@ android {
         debug {
             applicationIdSuffix ".debug"
         }
-    }
-
-    // Explicitly restrict to arm64-v8a only, per the single-ABI
-    // requirement. This is intentionally NOT combined with
-    // --split-per-abi on the Flutter CLI side (see the CI workflow),
-    // since specifying abiFilters here AND passing --split-per-abi to
-    // `flutter build apk` causes Gradle/Flutter to disagree about how
-    // many APK variants to produce — another known source of build
-    // failures. Pick one mechanism; this project uses this one.
-    ndk {
-        abiFilters "arm64-v8a"
     }
 }
 
