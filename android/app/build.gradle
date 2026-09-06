@@ -25,7 +25,15 @@ if (flutterVersionName == null) {
 android {
     namespace "com.moviestream.movie_stream"
     compileSdk 36
-    ndkVersion flutter.ndkVersion
+
+    // Pinned explicitly rather than using flutter.ndkVersion: several
+    // plugins in this project (package_info_plus, path_provider_android,
+    // shared_preferences_android, sqflite_android, video_player_android,
+    // wakelock_plus) require Android NDK 27.0.12077973, which is newer
+    // than the NDK version Flutter's tooling defaults to. Gradle only
+    // warns about this rather than failing outright, but pinning here
+    // avoids relying on that warning being harmless forever.
+    ndkVersion "27.0.12077973"
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
@@ -49,6 +57,15 @@ android {
         versionName flutterVersionName
         multiDexEnabled true
 
+        // Restricts the build to arm64-v8a only, per the single-ABI
+        // requirement. Must live inside defaultConfig — AGP 8.11+ removed
+        // the top-level android.ndk{} DSL that older AGP versions
+        // accepted ("Could not find method ndk()" if placed directly
+        // under android {}). Intentionally NOT combined with
+        // --split-per-abi on the Flutter CLI side (see the CI workflow),
+        // since specifying abiFilters here AND passing --split-per-abi
+        // causes Gradle/Flutter to disagree about how many APK variants
+        // to produce — another known source of build failures.
         ndk {
             abiFilters "arm64-v8a"
         }
@@ -56,7 +73,19 @@ android {
 
     buildTypes {
         release {
+            // Signed with the debug keystore by default so a CI build is
+            // installable out of the box. Replace with a dedicated
+            // release keystore before publishing to a store.
             signingConfig signingConfigs.debug
+
+            // Deliberately OFF: R8 minification on Flutter release
+            // builds has a well-known failure mode where it strips
+            // classes referenced only via reflection (e.g.
+            // SplitCompatApplication from Play Core, or Media3/ExoPlayer
+            // internals), producing a "Missing class" crash at runtime
+            // that's hard to diagnose. Since this build already restricts
+            // itself to a single ABI (arm64-v8a) for size, the extra
+            // size reduction from minification isn't worth that risk.
             minifyEnabled false
             shrinkResources false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
