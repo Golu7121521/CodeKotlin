@@ -175,6 +175,23 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // Brave/uBlock don't just block by domain — they match URL *patterns*
+    // too, because sites like YouTube fire ad/tracking requests from their
+    // own first-party domain (e.g. youtube.com/pagead/, /api/stats/ads).
+    // These path fragments are safe to block: they carry no video/page data.
+    private val adUrlPatterns = listOf(
+        "/pagead/", "/api/stats/ads", "/ptracking", "/get_midroll",
+        "/annotations_invideo", "/gen_204?", "/log_event",
+        "/api/stats/qoe?", "/csi_204", "/ad_break", "/adview",
+        "doubleclick.net", "googlesyndication.com", "googleadservices.com",
+        "/pagead2", "/measurement", "/adsid/"
+    )
+
+    private fun isAdUrl(url: String): Boolean {
+        val lower = url.lowercase()
+        return adUrlPatterns.any { lower.contains(it) } || isAdHost(url)
+    }
+
     private fun isAdHost(url: String): Boolean {
         return try {
             val host = URI(url).host?.lowercase() ?: return false
@@ -198,6 +215,20 @@ class MainActivity : AppCompatActivity() {
         settings.mediaPlaybackRequiresUserGesture = true
         settings.javaScriptCanOpenWindowsAutomatically = false
 
+        // ---- Fix for YouTube/video showing a black screen ----
+        // WebView's default UA contains "; wv" which flags it to sites as an
+        // embedded app WebView. YouTube then sometimes serves a restricted
+        // player (no proper DRM/codec negotiation) that renders a black frame
+        // even though audio plays. Stripping "wv" makes it identify as a
+        // normal mobile Chrome browser, which fixes this for most devices.
+        val defaultUa = settings.userAgentString
+        settings.userAgentString = defaultUa.replace("; wv", "").replace(" wv)", ")")
+
+        // Forcing a hardware-composited layer avoids a long-standing WebView
+        // bug where <video> renders as solid black due to a GPU layer/overlay
+        // compositing glitch.
+        webView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+
         // ---- Block popups / new windows (a common ad-redirect vector) ----
         webView.setOnLongClickListener(null)
 
@@ -218,7 +249,7 @@ class MainActivity : AppCompatActivity() {
                 request: WebResourceRequest
             ): WebResourceResponse? {
                 val url = request.url.toString()
-                return if (isAdHost(url)) emptyResponse else super.shouldInterceptRequest(view, request)
+                return if (isAdUrl(url)) emptyResponse else super.shouldInterceptRequest(view, request)
             }
 
             override fun shouldOverrideUrlLoading(

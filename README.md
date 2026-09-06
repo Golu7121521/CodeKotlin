@@ -1,14 +1,17 @@
 # AdBlock Browser (Android)
 
 Simple WebView-based Android browser jisme:
-- **Network-level blocking** — 120+ known ad/tracker/analytics domains (Google Ads, DoubleClick, Taboola, Outbrain, Criteo, Facebook Pixel, mobile SDK networks, etc.) ki requests `shouldInterceptRequest` mein hi drop ho jaati hain, response tak nahi jaane deta.
+- **Network-level blocking** — 120+ known ad/tracker/analytics domains ki requests block, PLUS Brave/uBlock-style **URL pattern matching**: same-domain ad/tracking paths (e.g. `youtube.com/pagead/`, `/api/stats/ads`, `/ptracking`) bhi block hote hain, sirf poore domain ka blacklist nahi.
+- **Video black-screen fix** — WebView ki default user-agent string mein `; wv` flag hota hai jo site ko batata hai "yeh ek embedded app WebView hai", jiske jawab mein YouTube kabhi restricted player deta hai jisme video black dikhta hai (audio chalta rehta hai). Is app mein `wv` flag hata diya gaya hai + hardware layer force kiya gaya hai taaki video normally render ho.
 - **Cosmetic filtering (Brave/uBlock style)** — CSS + JS rules jo har website par ad-shaped elements (`class*="ad-"`, `[data-ad-slot]`, `ins.adsbygoogle`, known ad iframes, YouTube ad overlays, etc.) ko hide/collapse kar dete hain, chahe woh domain block-list mein ho ya na ho. Yeh script `document-start` par hi inject hota hai (page load se pehle) jaise Brave apne filters apply karta hai, phir ek `MutationObserver` continuously naye ads ko bhi pakadta rehta hai.
 - **YouTube ad-skip** — "Skip Ad" button auto-click, unskippable video ads mute+fast-forward.
 - **Popup / redirect blocking** — `window.open`, `target="_blank"` popups aur non-http(s) scheme redirects block.
 - **Edge-to-edge fullscreen UI** — status bar/nav bar ke peeche content draw hota hai, sirf ek chhota address bar + WebView.
 - **GitHub Actions se build** — koi Android Studio local install karne ki zaroorat nahi.
 
-> **Note:** Yeh Brave jaisa hi *approach* use karta hai (network blocklist + cosmetic filters), lekin Brave ka asli adblock-rust engine EasyList/EasyPrivacy ke lakhon regex rules compile karke chalata hai — is app mein ek curated (100+ domain) list + generic CSS patterns hain. Zyadatar common ads/trackers block ho jaayenge, lekin naye/obscure ad networks kabhi-kabhi nikal sakte hain.
+> **Note:** Yeh Brave jaisa hi *approach* use karta hai (network blocklist + URL pattern rules + cosmetic filters), lekin Brave ka asli adblock-rust engine EasyList/EasyPrivacy ke lakhon regex rules compile karke chalata hai — is app mein ek curated (100+ domain + pattern) list + generic CSS patterns hain. Zyadatar banner/sidebar/pop-up ads aur skippable YouTube ads block/skip ho jaayenge.
+>
+> **Honest limitation:** YouTube ke kuch video ads ab same video stream (`googlevideo.com`) ke andar hi server-side stitch kar diye jaate hain, content ke sath ek hi stream mein. Aise ads ko bina real video tode WebView level par pura block karna practically possible nahi hai. Skip-button wale ads reliably skip ho jaate hain; kuch unskippable ads kabhi-kabhi dikh sakte hain.
 
 ## GitHub par APK build kaise karein
 
