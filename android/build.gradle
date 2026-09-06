@@ -1,12 +1,12 @@
 buildscript {
-    ext.kotlin_version = '2.2.20'
+    ext.kotlin_version = '1.9.10'
     repositories {
         google()
         mavenCentral()
     }
 
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.11.1'
+        classpath 'com.android.tools.build:gradle:8.1.2'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
     }
 }
@@ -24,49 +24,6 @@ subprojects {
 }
 subprojects {
     project.evaluationDependsOn(':app')
-}
-
-// Force a consistent Java/Kotlin JVM target (17) across all subprojects,
-// including third-party plugins whose own build.gradle files may target
-// older Java bytecode levels than their Kotlin compilation — a mismatch
-// Gradle 8.x rejects outright ("Inconsistent JVM-target compatibility").
-//
-// Task types are matched by name (not by class reference) to avoid
-// needing a Kotlin Gradle plugin import in this root script.
-//
-// Each subproject is checked via project.state.executed for whether it
-// has *already* evaluated (its evaluation order depends on the
-// evaluationDependsOn(':app') call above) before deciding whether to
-// hook afterEvaluate or apply the fix immediately — calling afterEvaluate
-// on an already-evaluated project throws InvalidUserCodeException
-// ("Cannot run Project.afterEvaluate(Closure) when the project is
-// already evaluated"), which is why this guard exists.
-subprojects { subproject ->
-    def applyJvmTargets = {
-        if (subproject.hasProperty('android')) {
-            subproject.android {
-                compileOptions {
-                    sourceCompatibility JavaVersion.VERSION_17
-                    targetCompatibility JavaVersion.VERSION_17
-                }
-            }
-        }
-        subproject.tasks.matching { it.name.contains('Kotlin') }.configureEach { task ->
-            if (task.hasProperty('kotlinOptions')) {
-                task.kotlinOptions.jvmTarget = "17"
-            }
-        }
-        subproject.tasks.withType(JavaCompile).configureEach {
-            sourceCompatibility = JavaVersion.VERSION_17.toString()
-            targetCompatibility = JavaVersion.VERSION_17.toString()
-        }
-    }
-
-    if (subproject.state.executed) {
-        applyJvmTargets()
-    } else {
-        subproject.afterEvaluate { applyJvmTargets() }
-    }
 }
 
 tasks.register("clean", Delete) {

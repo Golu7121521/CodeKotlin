@@ -1,29 +1,52 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'providers/player_provider.dart';
+import 'providers/library_provider.dart';
+import 'providers/theme_provider.dart';
+import 'theme/app_theme.dart';
+import 'screens/main_shell.dart';
 
-import 'app.dart';
-import 'providers/catalog_provider.dart';
-import 'providers/downloads_provider.dart';
-import 'providers/performance_provider.dart';
-import 'providers/search_provider.dart';
-import 'providers/watchlist_provider.dart';
-
-Future<void> main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  runApp(const SynesthesiaApp());
+}
 
-  final performanceProvider = PerformanceProvider();
-  await performanceProvider.load();
+class SynesthesiaApp extends StatefulWidget {
+  const SynesthesiaApp({super.key});
 
-  runApp(
-    MultiProvider(
+  @override
+  State<SynesthesiaApp> createState() => _SynesthesiaAppState();
+}
+
+class _SynesthesiaAppState extends State<SynesthesiaApp> {
+  final ThemeProvider _themeProvider = ThemeProvider();
+
+  @override
+  void initState() {
+    super.initState();
+    _themeProvider.loadSavedTheme();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MultiProvider(
       providers: [
-        ChangeNotifierProvider.value(value: performanceProvider),
-        ChangeNotifierProvider(create: (_) => CatalogProvider()),
-        ChangeNotifierProvider(create: (_) => SearchProvider()),
-        ChangeNotifierProvider(create: (_) => WatchlistProvider()),
-        ChangeNotifierProvider(create: (_) => DownloadsProvider()),
+        ChangeNotifierProvider(create: (_) => PlayerProvider()),
+        ChangeNotifierProvider(create: (_) => LibraryProvider()..loadAll()),
+        ChangeNotifierProvider.value(value: _themeProvider),
       ],
-      child: const MovieStreamApp(),
-    ),
-  );
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, _) {
+          return MaterialApp(
+            title: 'Synesthesia',
+            debugShowCheckedModeBanner: false,
+            themeMode: themeProvider.themeMode,
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            home: const MainShell(),
+          );
+        },
+      ),
+    );
+  }
 }
