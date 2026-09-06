@@ -96,15 +96,10 @@ class MainActivity : AppCompatActivity() {
                     var btn = document.querySelector(sel);
                     if (btn) btn.click();
                 });
-                var adShowing = document.querySelector('.ad-showing, .ad-interrupting');
-                var player = document.querySelector('.html5-video-player video, video');
-                if (adShowing && player && player.duration) {
-                    try {
-                        player.currentTime = player.duration;
-                        player.muted = true;
-                        player.playbackRate = 16;
-                    } catch (e) {}
-                }
+                // Note: deliberately NOT touching video.currentTime / playbackRate /
+                // muted here. YouTube reuses the same <video> element for the ad
+                // and the real content, so forcing those properties can leak into
+                // real playback (video appears frozen, muted, or stuck at the end).
             }
 
             function run() {
