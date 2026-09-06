@@ -16,6 +16,26 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Check for committed build artifacts that could cause stale-cache issues
+        run: |
+          echo "=== Checking for committed .dart_tool, build/, or .packages ==="
+          if [ -d ".dart_tool" ]; then
+            echo "::error::.dart_tool directory is committed to the repo! This causes stale analysis cache."
+            find .dart_tool -maxdepth 2
+            exit 1
+          fi
+          if [ -d "build" ]; then
+            echo "::error::build/ directory is committed to the repo!"
+            exit 1
+          fi
+          if [ -f ".packages" ]; then
+            echo "::warning::.packages file is committed to the repo (usually harmless but unexpected)."
+          fi
+          echo "No stale committed artifacts found."
+
+          echo "=== Actual on-disk content of profile_screen.dart at commit ==="
+          cat -A lib/screens/profile/profile_screen.dart | head -20
+
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
