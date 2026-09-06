@@ -56,19 +56,6 @@ android {
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
         multiDexEnabled true
-
-        // Restricts the build to arm64-v8a only, per the single-ABI
-        // requirement. Must live inside defaultConfig — AGP 8.11+ removed
-        // the top-level android.ndk{} DSL that older AGP versions
-        // accepted ("Could not find method ndk()" if placed directly
-        // under android {}). Intentionally NOT combined with
-        // --split-per-abi on the Flutter CLI side (see the CI workflow),
-        // since specifying abiFilters here AND passing --split-per-abi
-        // causes Gradle/Flutter to disagree about how many APK variants
-        // to produce — another known source of build failures.
-        ndk {
-            abiFilters "arm64-v8a"
-        }
     }
 
     buildTypes {
@@ -93,6 +80,17 @@ android {
         debug {
             applicationIdSuffix ".debug"
         }
+    }
+
+    // Explicitly restrict to arm64-v8a only, per the single-ABI
+    // requirement. This is intentionally NOT combined with
+    // --split-per-abi on the Flutter CLI side (see the CI workflow),
+    // since specifying abiFilters here AND passing --split-per-abi to
+    // `flutter build apk` causes Gradle/Flutter to disagree about how
+    // many APK variants to produce — another known source of build
+    // failures. Pick one mechanism; this project uses this one.
+    ndk {
+        abiFilters "arm64-v8a"
     }
 }
 
