@@ -1,6 +1,0 @@
-<resources>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
-    <color name="bar_bg">#FF1E1E1E</color>
-    <color name="bar_text">#FFEDEDED</color>
-</resources>

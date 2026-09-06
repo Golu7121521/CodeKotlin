@@ -1,44 +1,109 @@
-# AdBlock Browser (Android)
+# MovieStream
 
-Simple WebView-based Android browser jisme:
-- **Network-level blocking** — 120+ known ad/tracker/analytics domains ki requests block, PLUS Brave/uBlock-style **URL pattern matching**: same-domain ad/tracking paths (e.g. `youtube.com/pagead/`, `/api/stats/ads`, `/ptracking`) bhi block hote hain, sirf poore domain ka blacklist nahi.
-- **Video black-screen fix** — WebView ki default user-agent string mein `; wv` flag hota hai jo site ko batata hai "yeh ek embedded app WebView hai", jiske jawab mein YouTube kabhi restricted player deta hai jisme video black dikhta hai (audio chalta rehta hai). Is app mein `wv` flag hata diya gaya hai + hardware layer force kiya gaya hai taaki video normally render ho.
-- **Cosmetic filtering (Brave/uBlock style)** — CSS + JS rules jo har website par ad-shaped elements (`class*="ad-"`, `[data-ad-slot]`, `ins.adsbygoogle`, known ad iframes, YouTube ad overlays, etc.) ko hide/collapse kar dete hain, chahe woh domain block-list mein ho ya na ho. Yeh script `document-start` par hi inject hota hai (page load se pehle) jaise Brave apne filters apply karta hai, phir ek `MutationObserver` continuously naye ads ko bhi pakadta rehta hai.
-- **YouTube ad-skip** — "Skip Ad" button auto-click, unskippable video ads mute+fast-forward.
-- **Popup / redirect blocking** — `window.open`, `target="_blank"` popups aur non-http(s) scheme redirects block.
-- **Edge-to-edge fullscreen UI** — status bar/nav bar ke peeche content draw hota hai, sirf ek chhota address bar + WebView.
-- **GitHub Actions se build** — koi Android Studio local install karne ki zaroorat nahi.
+A next-gen movie streaming client built in Flutter: TMDB-powered discovery, a cinematic native video player, and offline downloads, all built around an OLED-true-black design system.
 
-> **Note:** Yeh Brave jaisa hi *approach* use karta hai (network blocklist + URL pattern rules + cosmetic filters), lekin Brave ka asli adblock-rust engine EasyList/EasyPrivacy ke lakhon regex rules compile karke chalata hai — is app mein ek curated (100+ domain + pattern) list + generic CSS patterns hain. Zyadatar banner/sidebar/pop-up ads aur skippable YouTube ads block/skip ho jaayenge.
->
-> **Honest limitation:** YouTube ke kuch video ads ab same video stream (`googlevideo.com`) ke andar hi server-side stitch kar diye jaate hain, content ke sath ek hi stream mein. Aise ads ko bina real video tode WebView level par pura block karna practically possible nahi hai. Skip-button wale ads reliably skip ho jaate hain; kuch unskippable ads kabhi-kabhi dikh sakte hain.
+## Content and Compliance Note
 
-## GitHub par APK build kaise karein
+This app performs no scraping, no third-party site sniffing, and no request-header spoofing of any kind. Its two data pipelines are entirely separate:
 
-1. Is poore folder ko apne GitHub repo mein push karein (root mein `build.gradle`, `settings.gradle`, `app/`, `.github/workflows/build.yml` hone chahiye).
-2. GitHub par jaake **Actions** tab kholen → **Build APK** workflow ko dekhen. Push karte hi automatically chalega, ya "Run workflow" button se manually trigger karein.
-3. Build complete hone ke baad, workflow run ke niche **Artifacts** section mein `adblock-browser-debug-apk` milega — usse download karke apne phone mein install kar sakte hain (unknown sources allow karna padega).
+- Catalog metadata (titles, posters, backdrops, cast, ratings) comes exclusively from TMDB's public API. TMDB never serves video files, only metadata.
+- Playback is served exclusively through StreamResolver (lib/services/stream_resolver.dart), which returns only URLs it was explicitly configured to know about, either a small built-in demo catalog of public sample clips (for out-of-the-box testing) or your own authorized backend, which you implement.
 
-```bash
-# Local push karne ke liye:
-git init
-git add .
-git commit -m "Initial adblock browser app"
-git branch -M main
-git remote add origin https://github.com/<your-username>/<your-repo>.git
-git push -u origin main
+If you fork this project to serve real licensed content, you are responsible for ensuring you hold the rights to stream that content and that your backend properly enforces entitlement/DRM as required by your content agreements.
+
+## Features
+
+- Design system: OLED-true-black palette, 1.25 modular type scale, 8pt spacing grid, named easing curves/durations, all as reusable Dart tokens in lib/theme/
+- Discovery: TMDB trending, Bollywood/Hindi cinema discovery, genre browsing, predictive search with pagination, resilient fallback catalog on network failure
+- Home screen: hero banner with gradient scrim, parallax-scaling content rows, Continue Watching
+- Movie details: shared-element (Hero) backdrop transition, metadata bar, cast carousel
+- Cinematic player: layered Z-index architecture (video, subtitles, controls, gesture overlay), double-tap seek with spring-animated feedback, audio-focus-loss pause/dim, multi-server fallback plus manual server switcher, resume-from-last-position
+- Downloads: Queued -> Downloading -> Paused -> Downloaded -> Expired state machine, glowing progress-ring thumbnails, Dio-based transfer with cancellation
+- Accessibility and performance: reduced-motion/effects mode (manual toggle, extensible to an automatic low-end-device heuristic), shimmer loading states with a static fallback
+
+## Requirements
+
+- Flutter 3.27+ (Dart 3.3+)
+- Android SDK: compileSdk/targetSdk 36, minSdk 21
+- JDK 17
+- Kotlin 2.2.20, AGP 8.11.1, Gradle 8.14
+
+## Project Structure
+
+```
+lib/
+  main.dart               Entry point
+  app.dart                 MaterialApp + custom page transitions
+  constants/                API configuration
+  models/                   Movie, StreamSource, DownloadItem
+  services/                 TMDB API client, StreamResolver, storage, downloads
+  providers/                App state (Provider/ChangeNotifier)
+  theme/                    Design tokens: colors, typography, spacing, motion
+  widgets/                  Reusable UI components
+  screens/                  Home, Details, Search, Player, Downloads, Profile
+
+android/                   Native Android project (Kotlin, Gradle)
+test/
+  unit/                    Model and service unit tests
+  widget/                  Widget tests
+.github/workflows/         CI: builds a single arm64-v8a release APK
 ```
 
-## Block list customize karna
+## Setup
 
-`app/src/main/assets/adblock_hosts.txt` mein ek line per domain hai. Naye ad-network domains add karne ke liye bas naya line daal dijiye (subdomains automatically match ho jaate hain, e.g. `doubleclick.net` blocked hone se `ads.doubleclick.net` bhi block hoga).
+```bash
+flutter pub get
+```
 
-## Local build (agar Android Studio ho)
+## Configuring Real Playback
 
-Agar kabhi local machine par Android Studio se bhi build karna ho, project ko simply open kar dein — Gradle sync khud gradlew wrapper generate/download kar lega. GitHub Actions workflow mein bhi yahi kaam `gradle wrapper --gradle-version 8.7` step karta hai, isliye repo mein `gradlew` file commit karne ki zaroorat nahi hai.
+By default, StreamResolver runs in demo mode against a small built-in catalog of public sample video clips, so the full pipeline (resolve -> player -> download) works immediately without any backend.
 
-## Notes
+To connect your own authorized content source, edit lib/screens/player/video_player_screen.dart:
 
-- `minSdk 24` (Android 7.0+), `targetSdk 34`.
-- App ka package name: `com.example.adblockbrowser` — chahें to `applicationId` (app/build.gradle) aur folder naam change kar sakte hain apne naam ke hisaab se.
-- Yeh ek basic host-based blocker hai (EasyList jaisa full regex-rule engine nahi) — zyadatar common ad/tracker/redirect domains cover karta hai, but 100% ad-free guarantee nahi deta.
+```dart
+final _resolver = StreamResolver(
+  useDemoCatalog: false,
+  backendBaseUrl: 'https://api.yourservice.com',
+);
+```
+
+Then implement StreamResolver._fetchFromBackend to call GET {backendBaseUrl}/stream/{movieId} against your own API, which should validate the user's entitlement and return a signed/authorized media URL.
+
+## Build Instructions
+
+### Debug
+
+```bash
+flutter run
+```
+
+### Release APK (arm64-v8a only)
+
+```bash
+flutter build apk --release --target-platform android-arm64
+```
+
+Output: build/app/outputs/flutter-apk/app-release.apk
+
+The release build signs with the debug keystore so CI produces an installable APK immediately, and deliberately runs with minifyEnabled false (see the comment in android/app/build.gradle for why: R8 minification has a known failure mode with Flutter plugin classes referenced only via reflection). Replace the signing config with your own keystore before publishing.
+
+## GitHub Actions
+
+.github/workflows/flutter_build.yml builds a single arm64-v8a release APK on every push to main/master. It generates the Gradle wrapper from a real, freshly-downloaded Gradle binary in an isolated scratch directory (not this repo's android/ folder) before building, which avoids every wrapper-related failure mode encountered in earlier iterations of this CI setup (broken JVM-arg quoting in a hand-written gradlew, invalid/corrupted wrapper jars, and plugins {} block ordering errors from Gradle trying to evaluate app/build.gradle just to generate a wrapper).
+
+Download the built APK from the Actions tab, the workflow run, Artifacts, app-release-arm64.apk.
+
+## Testing
+
+```bash
+flutter test
+```
+
+## Troubleshooting
+
+| Issue | Fix |
+|---|---|
+| flutter.sdk not set in local.properties | Let Android Studio regenerate android/local.properties, or set flutter.sdk=/path/to/flutter yourself. |
+| Player shows "isn't available to stream" | The requested movie ID has no entry in StreamResolver's demo catalog and no backend is configured, see "Configuring Real Playback" above. |
+| Home screen rows are empty | TMDB may be unreachable; the app falls back to a small embedded catalog automatically, but a completely offline first launch will show that fallback data rather than live TMDB results. |

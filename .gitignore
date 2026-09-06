@@ -1,10 +1,38 @@
-.gradle/
+# Flutter/Dart
+.dart_tool/
+.packages
 build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+pubspec.lock
+
+# Coverage
+coverage/
+
+# Android
+android/.gradle/
+android/captures/
+android/local.properties
+android/gradlew.log
+android/app/debug
+android/app/profile
+android/app/release
+*.jks
+*.keystore
+key.properties
+
+# IDE
 .idea/
-local.properties
 *.iml
+*.iws
+.vscode/
+
+# OS
 .DS_Store
-gradlew
-gradlew.bat
-gradle/wrapper/gradle-wrapper.jar
-gradle/wrapper/gradle-wrapper.properties
+Thumbs.db
+
+# Generated files
+*.g.dart
+*.freezed.dart
