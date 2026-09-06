@@ -29,8 +29,23 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Verify profile_screen.dart has the required import
+        run: |
+          echo "=== profile_screen.dart imports ==="
+          head -10 lib/screens/profile/profile_screen.dart
+          if ! grep -q "theme/app_theme.dart" lib/screens/profile/profile_screen.dart; then
+            echo "::error::profile_screen.dart is missing the app_theme.dart import!"
+            exit 1
+          fi
+          echo "Import verified present."
+
       - name: Get dependencies
         run: flutter pub get
+
+      - name: Clean stale build cache
+        run: |
+          flutter clean
+          flutter pub get
 
       # -----------------------------------------------------------------
       # Gradle wrapper generation.
@@ -84,10 +99,6 @@ jobs:
           echo "=== Verifying wrapper jar contains GradleWrapperMain ==="
           unzip -l "$GITHUB_WORKSPACE/android/gradle/wrapper/gradle-wrapper.jar" | grep GradleWrapperMain
 
-      # Note: --split-per-abi is intentionally NOT used here since
-      # app/build.gradle already restricts the build to arm64-v8a via
-      # ndk.abiFilters — combining both mechanisms is a known source of
-      # Gradle/Flutter disagreeing about how many APK variants to build.
       - name: Build release APK (arm64-v8a only)
         run: flutter build apk --release --target-platform android-arm64
 
