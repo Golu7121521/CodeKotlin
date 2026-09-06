@@ -1,17 +1,24 @@
 # Gitbox — Setup Notes (read before first push)
 
-## 1. Gradle wrapper JAR
-This scaffold includes `gradlew`, `gradlew.bat`, and `gradle/wrapper/gradle-wrapper.properties`
-(pinned to Gradle 8.7), but **not** the binary `gradle/wrapper/gradle-wrapper.jar` — it can't be
-generated in a sandboxed, network-disabled environment. Before your first push, run once on any
-machine with Gradle installed (or let Android Studio do it on project open):
+## 1. Gradle wrapper JAR — now self-healing in CI
+This scaffold ships `gradlew`, `gradlew.bat`, and `gradle/wrapper/gradle-wrapper.properties`
+(pinned to Gradle 8.7), but the binary `gradle/wrapper/gradle-wrapper.jar` couldn't be generated in
+this sandboxed, network-disabled environment. The workflow now handles this automatically:
+
+- On every run, a step checks whether `gradle/wrapper/gradle-wrapper.jar` exists.
+- If it's missing, it runs `gradle wrapper --gradle-version 8.7 --distribution-type bin` using the
+  system Gradle already on the runner image, regenerating the jar.
+- On non-PR events, that regenerated jar (plus `gradlew`/`gradlew.bat`) is committed straight back
+  to the branch with `[skip ci]`, so subsequent pushes skip regeneration entirely.
+
+If you'd rather not have CI commit to your branch, generate it once locally instead and delete the
+"Regenerate Gradle wrapper jar" / "Commit regenerated wrapper jar" steps from the workflow:
 
 ```bash
 gradle wrapper --gradle-version 8.7
+git add gradle/wrapper/gradle-wrapper.jar gradlew gradlew.bat
+git commit -m "chore: add gradle wrapper jar"
 ```
-
-This generates `gradle/wrapper/gradle-wrapper.jar`. Commit it — the CI workflow calls `./gradlew`
-directly and needs that jar present in the repo.
 
 ## 2. Release signing secrets (optional, for signed release APKs)
 `app/build.gradle.kts` resolves signing from environment variables the workflow injects from repo
